@@ -21,3 +21,13 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_CREATE_TOPICS: kafka_chat
+  db:
+    image: postgres:13
+    ports:
+      - "5432:5432"
+#    volumes:
+#      - ./pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=local
+      - POSTGRES_PASSWORD=local
+      - POSTGRES_DB=chatapp

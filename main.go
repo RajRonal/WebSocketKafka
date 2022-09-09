@@ -1,7 +1,10 @@
 package main
 
 import (
+	"Kafka-web-Socket/database"
+	"Kafka-web-Socket/helper"
 	"context"
+	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/segmentio/kafka-go"
 	"github.com/sirupsen/logrus"
@@ -28,7 +31,9 @@ type Server struct {
 }
 
 func main() {
+
 	//initializing the server
+
 	var Server = Server{
 		Clients: make(map[string]*websocket.Conn),
 		Msg:     "",
@@ -44,6 +49,13 @@ func main() {
 			Balancer: &kafka.LeastBytes{},
 		},
 	}
+
+	err := database.ConnectAndMigrate("localhost", "5432", "chatapp", "local", "local", database.SSLModeDisable)
+	if err != nil {
+		logrus.Fatal(err)
+		return
+	}
+	fmt.Println("connected")
 
 	// kafka last offset to overcome duplicacy,encountered when messages are sent in continuous fashion
 	Server.Reader.SetOffset(kafka.LastOffset)
@@ -67,6 +79,7 @@ func (srv Server) WebSocket(w http.ResponseWriter, r *http.Request) {
 	//storing the connection object corresponding to sender-id
 	srv.Clients[r.URL.Query().Get("sender-id")] = connectionObject
 	receiverId := r.URL.Query().Get("receiver-id")
+	senderId := r.URL.Query().Get("sender-id")
 
 	//Execution of  threads
 	go func() {
@@ -108,6 +121,12 @@ func (srv Server) WebSocket(w http.ResponseWriter, r *http.Request) {
 			err := writerConn.WriteJSON(string(message.Value))
 			if err != nil {
 				logrus.Error("Error in writing msg %s", err)
+				break
+			}
+
+			err = helper.InsertMessage(senderId, string(message.Key), string(message.Value))
+			if err != nil {
+				logrus.Error("Error in writing msg to database %s", err)
 				break
 			}
 		}
